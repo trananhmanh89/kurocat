@@ -5,7 +5,7 @@ from io import BytesIO
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-ICON_DIR = os.path.join(ROOT, "src-tauri", "icons")
+ICON_DIR = os.path.join(ROOT, "assets", "icons")
 SOURCE_ART = os.path.join(ICON_DIR, "source-artwork.png")
 PREVIEW_OUT = os.path.join(
     r"C:\Users\admin\.gemini\antigravity\brain\9e28e15f-9987-4dd6-a482-8dfb9574ef80\scratch",

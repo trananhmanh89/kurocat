@@ -1,0 +1,61 @@
+[package]
+name = "kuro-cat-pet"
+version = "5.0.0"
+description = "Transparent desktop cat that reacts to your typing and mouse (Windows 10/11)"
+authors = ["Kevin Hao"]
+edition = "2021"
+build = "build.rs"
+
+[[bin]]
+name = "KuroCat"
+path = "src/main.rs"
+
+[features]
+default = []
+# Start with the 108-key full-size keyboard instead of the 65% layout.
+layout-108 = []
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tiny-skia = { version = "0.11", default-features = false, features = ["std", "simd", "png-format"] }
+ab_glyph = "0.2"
+muda = "0.17"
+tray-icon = "0.21"
+cpal = "0.16"
+windows-sys = { version = "0.59", features = [
+  "Win32_Foundation",
+  "Win32_Graphics_Gdi",
+  "Win32_Graphics_Dwm",
+  "Win32_UI_WindowsAndMessaging",
+  "Win32_UI_Input_KeyboardAndMouse",
+  "Win32_UI_HiDpi",
+  "Win32_UI_Shell",
+  "Win32_System_LibraryLoader",
+  "Win32_System_Registry",
+  "Win32_System_Threading",
+  "Win32_System_DataExchange",
+  "Win32_System_Memory",
+  "Win32_System_Ole",
+  "Win32_System_Performance",
+  "Win32_Security",
+] }
+windows = { version = "0.58", features = [
+  "Win32_Foundation",
+  "Win32_System_Com",
+  "Win32_UI_Accessibility",
+] }
+
+[build-dependencies]
+embed-resource = "3"
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = 3
+strip = true
+
+[profile.dev.package."*"]
+# Keep dependencies (tiny-skia especially) fast in debug builds so animation stays smooth while developing.
+opt-level = 3

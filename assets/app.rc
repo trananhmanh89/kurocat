@@ -1,0 +1,30 @@
+// Windows resources for KuroCat.exe: icon, version info and manifest.
+#include <winver.h>
+
+1 ICON "icons/icon.ico"
+1 24 "app.manifest"
+
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION 5,0,0,0
+PRODUCTVERSION 5,0,0,0
+FILEOS VOS_NT_WINDOWS32
+FILETYPE VFT_APP
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "040904B0"
+    BEGIN
+      VALUE "CompanyName", "KuroCat"
+      VALUE "FileDescription", "KuroCat"
+      VALUE "FileVersion", "5.0.0"
+      VALUE "InternalName", "KuroCat"
+      VALUE "OriginalFilename", "KuroCat.exe"
+      VALUE "ProductName", "KuroCat"
+      VALUE "ProductVersion", "5.0.0"
+    END
+  END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x0409, 1200
+  END
+END

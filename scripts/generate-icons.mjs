@@ -149,7 +149,7 @@ function buildIcns(entries) {
   return Buffer.concat([fileHdr, ...chunks]);
 }
 
-const iconDir = path.join('src-tauri', 'icons');
+const iconDir = path.join('assets', 'icons');
 fs.mkdirSync(iconDir, { recursive: true });
 const p16 = renderCatIcon(16);
 const p32 = renderCatIcon(32);
