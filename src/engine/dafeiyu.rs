@@ -47,6 +47,8 @@ pub struct DaFeiYuLayout {
     pub privacy_typing_at: f64,
     /// The 108-key keyboard is shown.
     pub is_108: bool,
+    /// How asleep she is: 0 = awake, 1 = asleep.
+    pub sleep: f32,
 }
 
 /// Facial expression, one sprite each.
@@ -271,6 +273,14 @@ impl DaFeiYu {
             ripples: Vec::new(),
             particles: Vec::new(),
         }
+    }
+
+    /// Returns where the sleeping "Z" bubbles appear: above and to the right of her head.
+    ///
+    /// @param layout The scene layout.
+    /// @return The point in logical pixels.
+    pub fn sleep_z_anchor(&self, layout: &DaFeiYuLayout) -> Vec2 {
+        Vec2::new(character_x(layout) + self.body_shift_x + 70.0, 84.0)
     }
 
     /// Called when password privacy mode starts or ends. Starting it lets go of all keys.
@@ -674,7 +684,7 @@ impl DaFeiYu {
         let is_happy = is_happy(layout);
         let is_blinking = now < self.blink_until;
 
-        let expression = if layout.privacy_mode {
+        let expression = if layout.privacy_mode || layout.sleep > 0.55 {
             Expression::Blink
         } else if is_happy || self.mood_tier == 2 {
             Expression::Happy

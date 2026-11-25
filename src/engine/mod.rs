@@ -17,6 +17,7 @@ mod animation;
 mod custom_skin;
 mod dafeiyu;
 mod desk;
+pub(crate) mod sleep;
 
 pub use dafeiyu::{DaFeiYu, DaFeiYuLayout};
 
@@ -284,6 +285,30 @@ pub struct Engine {
     pub(crate) recent_key_times: Vec<f64>,
     pub(crate) typing_energy: f32,
     pub(crate) last_any_key_at: f64,
+
+    // Falling asleep without input (see `sleep.rs`).
+    /// Time of the last keyboard or mouse input (ms).
+    pub(crate) last_activity_at: f64,
+    /// 0 = awake, 1 = asleep; moves linearly, `sleep_amount` eases it for drawing.
+    pub(crate) sleep_progress: f32,
+    /// Breathing phase in radians; slows down while asleep.
+    pub(crate) breath_phase: f32,
+    /// Z bubbles floating up while asleep.
+    pub(crate) sleep_zs: Vec<sleep::SleepZ>,
+    /// When the next Z bubble appears (ms).
+    pub(crate) next_sleep_z_at: f64,
+    /// How many Z bubbles appeared in this nap; picks their size.
+    pub(crate) sleep_z_count: u32,
+    /// Seconds into the current nod (the head slowly drops, then jerks back up).
+    pub(crate) nod_time: f32,
+    /// Length of the current nod in seconds; varies a little from nod to nod.
+    pub(crate) nod_length: f32,
+    /// How far the head has nodded down: 0 = upright, 1 = lowest point.
+    pub(crate) nod_amount: f32,
+    /// Phase of the slow side-to-side sway while asleep, in radians.
+    pub(crate) sleep_sway_phase: f32,
+    /// Current sway while asleep: -1 = leaning left, 1 = leaning right.
+    pub(crate) sleep_sway: f32,
 
     // Paws.
     pub(crate) left_paw: PawState,

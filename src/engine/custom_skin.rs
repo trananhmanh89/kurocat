@@ -581,7 +581,8 @@ impl Engine {
     /// @param eye_y Vertical eye position.
     pub(crate) fn draw_custom_eyes(&self, ctx: &mut Canvas, s: &ResolvedSkin, cx: f32, eye_y: f32) {
         let blink_value = if self.is_blinking { 1.0 - (self.blink_progress - 1.0).abs() } else { 0.0 };
-        let closedness = blink_value.max(self.squint_amount * 0.85).max(self.privacy_close);
+        let closedness = blink_value.max(self.squint_amount * 0.85).max(self.privacy_close).max(self.sleep_amount());
+        let sleep_line = self.sleep_eye_line_amount();
         let eye_xs = [cx - 23.0, cx + 23.0];
         let radius_x = 14.8 + self.typing_hunch * 1.0;
         let radius_y = 13.4 - self.typing_hunch * 0.5;
@@ -590,7 +591,7 @@ impl Engine {
             ctx.save();
             ctx.translate(*eye_x, eye_y);
 
-            if self.privacy_close > 0.45 {
+            if self.privacy_close > 0.45 || sleep_line >= 1.0 {
                 ctx.set_stroke_color(&s.squint_color);
                 ctx.set_line_width(2.9);
                 ctx.set_line_cap(LineCap::Round);
@@ -626,7 +627,7 @@ impl Engine {
             let open_radius_y = (radius_y * (1.0 - closedness)).max(1.2);
             let tilt_direction = if index == 0 { -0.1 } else { 0.1 };
             let curious_tilt = tilt_direction * (0.25 + self.typing_hunch * 0.75);
-            ctx.rotate(curious_tilt);
+            ctx.rotate(curious_tilt * (1.0 - sleep_line));
 
             let mut iris_gradient = Gradient::linear(0.0, -open_radius_y, 0.0, open_radius_y);
             iris_gradient.add_color_stop(0.0, &s.eye_color_top);
@@ -667,6 +668,10 @@ impl Engine {
                     ctx.ellipse(0.0, 0.0, radius_x, open_radius_y, 0.0, 0.0, PI * 2.0, false);
                     ctx.stroke();
                 }
+            }
+
+            if sleep_line > 0.0 {
+                super::sleep::draw_sleeping_eye_line(ctx, &s.squint_color, sleep_line);
             }
 
             ctx.restore();

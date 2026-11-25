@@ -120,22 +120,131 @@ fn trace_arm_path(
     ctx.close_path();
 }
 
+/// The tail as one cubic Bézier curve: start at the hip, two control points, tip.
+#[derive(Clone, Copy, Debug)]
+struct TailCurve {
+    start_x: f32,
+    start_y: f32,
+    cp1_x: f32,
+    cp1_y: f32,
+    cp2_x: f32,
+    cp2_y: f32,
+    end_x: f32,
+    end_y: f32,
+}
+
+/// Mixes two numbers.
+///
+/// @param from The value at amount 0.
+/// @param to The value at amount 1.
+/// @param amount How far to go from `from` to `to`.
+/// @return The mixed value.
+fn mix(from: f32, to: f32, amount: f32) -> f32 {
+    from + (to - from) * amount
+}
+
+impl TailCurve {
+    /// Mixes this curve with another one, point by point.
+    ///
+    /// @param other The curve to move towards.
+    /// @param amount 0 = this curve, 1 = the other curve.
+    /// @return The mixed curve.
+    fn blend_towards(&self, other: &TailCurve, amount: f32) -> TailCurve {
+        TailCurve {
+            start_x: mix(self.start_x, other.start_x, amount),
+            start_y: mix(self.start_y, other.start_y, amount),
+            cp1_x: mix(self.cp1_x, other.cp1_x, amount),
+            cp1_y: mix(self.cp1_y, other.cp1_y, amount),
+            cp2_x: mix(self.cp2_x, other.cp2_x, amount),
+            cp2_y: mix(self.cp2_y, other.cp2_y, amount),
+            end_x: mix(self.end_x, other.end_x, amount),
+            end_y: mix(self.end_y, other.end_y, amount),
+        }
+    }
+}
+
 impl Engine {
-    /// Draws the tail behind the cat: a soft S-hook leaving the right hip.
+    /// Draws the tail behind the cat: a soft S-hook leaving the right hip. While the cat dozes,
+    /// the tail lowers and wraps around the front paws (see `draw_tail_front`).
     ///
     /// @param ctx The canvas.
     pub(crate) fn draw_tail(&self, ctx: &mut Canvas) {
+        let curve = self.tail_curve();
+        self.stroke_tail(ctx, &curve);
+    }
+
+    /// Draws the part of the wrapped tail that passes in front of the front paws while the cat
+    /// dozes. Call it after the body and paws. Draws nothing while the cat is awake.
+    ///
+    /// @param ctx The canvas.
+    pub(crate) fn draw_tail_front(&self, ctx: &mut Canvas) {
+        if self.tail_wrap_amount() <= 0.01 {
+            return;
+        }
+        let curve = self.tail_curve();
+        let base = self.spine_point(1.0, 0.0);
+        ctx.save();
+        ctx.begin_path();
+        ctx.rect(0.0, base.y - 3.0, self.logical_w, self.logical_h);
+        ctx.clip();
+        self.stroke_tail(ctx, &curve);
+        ctx.restore();
+    }
+
+    /// Returns the tail curve: the seated S-hook, blended towards the pose wrapped around the
+    /// front paws while the cat dozes.
+    ///
+    /// @return The curve in logical pixels.
+    fn tail_curve(&self) -> TailCurve {
         let gentle_drift = (self.elapsed as f32 * 0.9).sin() * 1.4;
         let hip_right = self.spine_point(0.84, 0.0);
+        let base = self.spine_point(1.0, 0.0);
+        let wrap = self.tail_wrap_amount();
 
         let start_x = hip_right.x + 56.0;
         let start_y = hip_right.y - 2.0;
-        let cp1_x = start_x + 34.0;
-        let cp1_y = start_y + 4.0 + gentle_drift * 0.25;
-        let cp2_x = start_x + 38.0;
-        let cp2_y = start_y - 34.0 + gentle_drift * 0.45;
-        let end_x = start_x + 70.0 + gentle_drift * 0.35;
-        let end_y = start_y - 35.0 + gentle_drift;
+
+        let seated = TailCurve {
+            start_x,
+            start_y,
+            cp1_x: start_x + 34.0,
+            cp1_y: start_y + 4.0 + gentle_drift * 0.25,
+            cp2_x: start_x + 38.0,
+            cp2_y: start_y - 34.0 + gentle_drift * 0.45,
+            end_x: start_x + 70.0 + gentle_drift * 0.35,
+            end_y: start_y - 35.0 + gentle_drift,
+        };
+        if wrap <= 0.0 {
+            return seated;
+        }
+
+        // Down past the hip, under the paws, with the tip resting in front of the left paw.
+        let wrapped = TailCurve {
+            start_x,
+            start_y,
+            cp1_x: start_x + 28.0,
+            cp1_y: base.y + 2.0,
+            cp2_x: base.x + 62.0,
+            cp2_y: base.y + 18.0,
+            end_x: base.x - 26.0 + gentle_drift * 1.2,
+            end_y: base.y + 10.0,
+        };
+        seated.blend_towards(&wrapped, wrap)
+    }
+
+    /// Strokes the tail along a curve in the current skin.
+    ///
+    /// @param ctx The canvas.
+    /// @param curve The tail curve.
+    fn stroke_tail(&self, ctx: &mut Canvas, curve: &TailCurve) {
+        let start_x = curve.start_x;
+        let start_y = curve.start_y;
+        let cp1_x = curve.cp1_x;
+        let cp1_y = curve.cp1_y;
+        let cp2_x = curve.cp2_x;
+        let cp2_y = curve.cp2_y;
+        let end_x = curve.end_x;
+        let end_y = curve.end_y;
 
         ctx.save();
         ctx.set_line_cap(LineCap::Round);
@@ -609,7 +718,9 @@ impl Engine {
     fn draw_eyes(&self, ctx: &mut Canvas, cx: f32, eye_y: f32) {
         let is_ragdoll = self.cat_breed == super::CatBreed::Ragdoll;
         let blink_value = if self.is_blinking { 1.0 - (self.blink_progress - 1.0).abs() } else { 0.0 };
-        let closedness = blink_value.max(self.squint_amount * 0.85).max(self.privacy_close);
+        let closedness = blink_value.max(self.squint_amount * 0.85).max(self.privacy_close).max(self.sleep_amount());
+        let sleep_line = self.sleep_eye_line_amount();
+        let sleep_line_color = if is_ragdoll { "#212533" } else { "#d4f044" };
 
         let eye_xs = [cx - 23.0, cx + 23.0];
         let radius_x = 14.8 + self.typing_hunch * 1.0;
@@ -619,7 +730,7 @@ impl Engine {
             ctx.save();
             ctx.translate(eye_x, eye_y);
 
-            if self.privacy_close > 0.45 {
+            if self.privacy_close > 0.45 || sleep_line >= 1.0 {
                 ctx.set_stroke_color(if is_ragdoll { "#212533" } else { "#d4f044" });
                 ctx.set_line_width(2.9);
                 ctx.set_line_cap(LineCap::Round);
@@ -664,7 +775,7 @@ impl Engine {
 
             let open_radius_y = (radius_y * (1.0 - closedness)).max(1.2);
             let curious_tilt = (if index == 0 { -0.1 } else { 0.1 }) * (0.25 + self.typing_hunch * 0.75);
-            ctx.rotate(curious_tilt);
+            ctx.rotate(curious_tilt * (1.0 - sleep_line));
 
             if is_ragdoll {
                 let mut iris_gradient = Gradient::linear(0.0, -open_radius_y, 0.0, open_radius_y);
@@ -715,6 +826,10 @@ impl Engine {
                 ctx.begin_path();
                 ctx.ellipse(0.0, 0.0, radius_x, open_radius_y, 0.0, 0.0, PI * 2.0, false);
                 ctx.stroke();
+            }
+
+            if sleep_line > 0.0 {
+                super::sleep::draw_sleeping_eye_line(ctx, sleep_line_color, sleep_line);
             }
 
             ctx.restore();

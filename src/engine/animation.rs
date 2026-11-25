@@ -173,6 +173,17 @@ impl Engine {
             recent_key_times: Vec::new(),
             typing_energy: 0.0,
             last_any_key_at: -10000.0,
+            last_activity_at: now_ms(),
+            sleep_progress: 0.0,
+            breath_phase: 0.0,
+            sleep_zs: Vec::new(),
+            next_sleep_z_at: 0.0,
+            sleep_z_count: 0,
+            nod_time: 0.0,
+            nod_length: sleep::random_nod_length(),
+            nod_amount: 0.0,
+            sleep_sway_phase: 0.0,
+            sleep_sway: 0.0,
             left_paw: new_paw(PawSide::Left, cat_center_x, cat_base_y),
             right_paw: new_paw(PawSide::Right, cat_center_x, cat_base_y),
             last_space_paw: PawSide::Left,
@@ -202,6 +213,7 @@ impl Engine {
     pub fn on_privacy_typing(&mut self) {
         let now = now_ms();
         self.privacy_typing_at = now;
+        self.mark_activity(now);
         if self.cat_breed == CatBreed::DaFeiYu {
             self.dafeiyu.on_privacy_typing(now);
         }
@@ -322,6 +334,7 @@ impl Engine {
             mouse_active_at: self.last_mouse_move_at,
             pet_energy: self.pet_energy,
             privacy_mode: self.privacy_mode,
+            sleep: self.sleep_amount(),
             privacy_typing_at: self.privacy_typing_at,
             is_108: self.keyboard_layout == KeyboardLayoutId::Full108,
         }
@@ -338,9 +351,10 @@ impl Engine {
         let u = (1.0 - t).clamp(0.0, 1.0);
         let shear_curve = u * u * (3.0 - 2.0 * u);
         let lean_amplitude = if self.keyboard_layout == KeyboardLayoutId::Full108 { 76.0 } else { 46.0 };
-        let lean_x = (self.spine_lean * lean_amplitude + self.typing_sway * 25.0 + self.strike_rock * 10.0) * shear_curve;
+        let lean_x = (self.spine_lean * lean_amplitude + self.typing_sway * 25.0 + self.strike_rock * 10.0 + self.sleep_sway * 10.0) * shear_curve;
         let sway_dip_y = self.typing_sway.abs() * 4.0 * shear_curve;
-        let hunch_y = (self.typing_hunch * 13.0 + self.body_bob * 4.8 + breath) * shear_curve + sway_dip_y;
+        let sleep_droop = self.sleep_amount() * 7.0 + self.nod_amount * 13.0;
+        let hunch_y = (self.typing_hunch * 13.0 + self.body_bob * 4.8 + sleep_droop + breath) * shear_curve + sway_dip_y;
         let lean_drop_y = self.spine_lean.abs() * 6.0 * shear_curve;
         Vec2::new(
             self.cat_center_x + lean_x,
@@ -400,6 +414,7 @@ impl Engine {
     /// @param vk Windows virtual-key code.
     /// @param repeat True for auto-repeat events while the key is held.
     pub fn on_key_down(&mut self, vk: u32, repeat: bool) {
+        self.mark_activity(now_ms());
         if self.privacy_mode {
             if !repeat {
                 self.on_privacy_typing();
@@ -554,6 +569,7 @@ impl Engine {
     ///
     /// @param vk Windows virtual-key code.
     pub fn on_key_up(&mut self, vk: u32) {
+        self.mark_activity(now_ms());
         self.dafeiyu.on_key_up(vk);
         if self.privacy_mode {
             return;
@@ -572,6 +588,7 @@ impl Engine {
     /// @param ny Cursor y across the whole virtual screen (0..1).
     pub fn on_global_mouse_move(&mut self, nx: f32, ny: f32) {
         let now = now_ms();
+        self.mark_activity(now);
         let is_big_fish = self.cat_breed == CatBreed::DaFeiYu;
         self.last_mouse_nx = nx;
         self.mouse_target_offset_x = (nx - 0.5) * if is_big_fish { 14.0 } else { 28.0 };
@@ -652,6 +669,7 @@ impl Engine {
     /// @param button "left", "right" or "middle".
     pub fn on_mouse_down(&mut self, button: &str) {
         let now = now_ms();
+        self.mark_activity(now);
         match button {
             "left" => {
                 self.mouse_left_down = true;
@@ -681,6 +699,7 @@ impl Engine {
     ///
     /// @param button "left", "right" or "middle".
     pub fn on_mouse_up(&mut self, button: &str) {
+        self.mark_activity(now_ms());
         match button {
             "left" => self.mouse_left_down = false,
             "right" => self.mouse_right_down = false,
@@ -692,6 +711,7 @@ impl Engine {
     /// Handles a global mouse wheel turn.
     pub fn on_mouse_wheel(&mut self) {
         let now = now_ms();
+        self.mark_activity(now);
         self.mouse_scroll_flash = 1.0;
         self.last_mouse_move_at = now;
         self.dafeiyu.reset_left_hand_for_mouse();
@@ -874,6 +894,9 @@ impl Engine {
     /// @param now Current time in milliseconds.
     /// @return True when idle.
     pub fn is_idle(&self, now: f64) -> bool {
+        if self.is_sleep_changing() {
+            return false;
+        }
         let quiet_for = 5000.0;
         if now - self.last_any_key_at < quiet_for || now - self.last_mouse_move_at < quiet_for {
             return false;
@@ -913,6 +936,8 @@ impl Engine {
     /// @param now Current time in milliseconds.
     pub fn update(&mut self, dt: f32, now: f64) {
         self.elapsed += dt as f64;
+        self.update_sleep(dt, now);
+        let sleep = self.sleep_amount();
 
         let mouse_lerp = 1.0 - (-28.0 * dt).exp();
         self.mouse_offset_x += (self.mouse_target_offset_x - self.mouse_offset_x) * mouse_lerp;
@@ -981,7 +1006,10 @@ impl Engine {
 
         let desired_head_tilt = self.typing_sway * 0.18
             + self.typing_hunch * (self.strike_rock * 0.065 - 0.02)
-            + self.spine_lean * 0.085;
+            + self.spine_lean * 0.085
+            + sleep * (0.075 + self.breath_phase.sin() * 0.035)
+            + self.sleep_sway * 0.05
+            + self.nod_amount * 0.08;
         self.head_tilt = approach(self.head_tilt, desired_head_tilt, 12.0, dt);
 
         let pet_decay = if self.cursor_over_cat { 0.22 } else { 0.65 };
@@ -1001,7 +1029,7 @@ impl Engine {
         self.ear_twitch_left = (self.ear_twitch_left - dt * 8.0).max(0.0);
         self.ear_twitch_right = (self.ear_twitch_right - dt * 8.0).max(0.0);
 
-        if !self.is_blinking && self.elapsed >= self.next_blink_at {
+        if !self.is_blinking && self.elapsed >= self.next_blink_at && self.sleep_progress <= 0.0 {
             self.is_blinking = true;
             self.blink_progress = 0.0;
         }
@@ -1035,7 +1063,7 @@ impl Engine {
         self.eye_look_y = approach(self.eye_look_y, target_eye_y, 20.0, dt);
 
         let target_face_turn = dx * 4.0 + self.spine_lean * 8.0 + self.typing_sway * 8.5 + pure_typing_glance * 1.5;
-        self.face_turn_x = approach(self.face_turn_x, target_face_turn, 11.0, dt);
+        self.face_turn_x = approach(self.face_turn_x, target_face_turn * (1.0 - sleep), 11.0, dt);
 
         for anim in self.key_anims.values_mut() {
             if !anim.pressed && anim.press_amount > 0.0 {
@@ -1173,7 +1201,7 @@ impl Engine {
         ctx.scale(uniform_scale, uniform_scale);
 
         let elapsed = self.elapsed as f32;
-        let breath = (elapsed * 2.1).sin();
+        let breath = self.breath_phase.sin() * (1.0 + self.sleep_amount() * 1.4);
         let purr_shift = if self.squint_amount > 0.4 {
             (elapsed * 22.0).sin() * 0.45 * self.squint_amount
         } else {
@@ -1187,6 +1215,7 @@ impl Engine {
             self.draw_mini_mouse(ctx);
             self.draw_keyboard(ctx);
             self.dafeiyu.render_foreground(ctx, self.last_dt, now, &dafeiyu_layout);
+            self.draw_sleep_zs(ctx);
             if self.show_key_bubbles && !self.privacy_mode {
                 self.draw_key_bubbles(ctx);
                 self.draw_mouse_badges(ctx);
@@ -1203,6 +1232,8 @@ impl Engine {
         self.draw_cat_body(ctx, breath, purr_shift);
         self.draw_paw(ctx, &self.left_paw, breath);
         self.draw_paw(ctx, &self.right_paw, breath);
+        self.draw_tail_front(ctx);
+        self.draw_sleep_zs(ctx);
         if self.show_key_bubbles && !self.privacy_mode {
             self.draw_key_bubbles(ctx);
             self.draw_mouse_badges(ctx);
