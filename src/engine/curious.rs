@@ -46,7 +46,7 @@ pub(crate) struct PointerSample {
 /// @param damping Damping ratio (1 = no overshoot).
 /// @param dt Frame time in seconds.
 /// @return The new value.
-fn step_spring(value: f32, velocity: &mut f32, target: f32, hz: f32, damping: f32, dt: f32) -> f32 {
+pub(crate) fn step_spring(value: f32, velocity: &mut f32, target: f32, hz: f32, damping: f32, dt: f32) -> f32 {
     let omega = 2.0 * PI * hz;
     let steps = ((dt * 240.0).ceil() as i32).max(1);
     let step_dt = dt / steps as f32;
@@ -69,6 +69,8 @@ fn step_spring(value: f32, velocity: &mut f32, target: f32, hz: f32, damping: f3
 /// @param curious Curious amount, 0..1.
 /// @param pupil_color Pupil colour.
 /// @param always_catchlight True for cats that always have catchlights (ragdoll and most skins).
+/// @param grumpy How grumpy the eyes look, 0..1; grumpy pupils narrow into slits.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn draw_pupil(
     ctx: &mut Canvas,
     look_x: f32,
@@ -78,10 +80,11 @@ pub(crate) fn draw_pupil(
     curious: f32,
     pupil_color: &str,
     always_catchlight: bool,
+    grumpy: f32,
 ) {
-    // Curious pupils dilate into big round discs.
-    let pupil_radius_x = (6.2 + curious * 4.2).min(radius_x - 2.4);
-    let pupil_radius_y = (8.8 + curious * 1.9).min(open_radius_y - 1.4).max(1.0);
+    // Curious pupils dilate into big round discs; grumpy ones narrow into slits.
+    let pupil_radius_x = ((6.2 + curious * 4.2) * (1.0 - grumpy * 0.34)).min(radius_x - 2.4);
+    let pupil_radius_y = ((8.8 + curious * 1.9) * (1.0 - grumpy * 0.08)).min(open_radius_y - 1.4).max(1.0);
 
     // Bigger pupils have less room to move; keep them inside the iris while curious.
     let room_x = (radius_x - pupil_radius_x - 1.0).max(2.6);
@@ -145,9 +148,14 @@ impl Engine {
         false
     }
 
-    /// @return True when the cat may become curious right now.
-    fn can_be_curious(&self) -> bool {
-        self.cat_breed != CatBreed::DaFeiYu && !self.privacy_mode && self.sleep_progress <= 0.0
+    /// @param now Current time in milliseconds.
+    /// @return True when the cat may become curious right now (never while cross).
+    fn can_be_curious(&self, now: f64) -> bool {
+        self.cat_breed != CatBreed::DaFeiYu
+            && !self.privacy_mode
+            && self.sleep_progress <= 0.0
+            && !self.is_cross(now)
+            && self.cross_amount < 0.05
     }
 
     /// Measures the cursor speed, starts or ends curious mode and eases the curious amount.
@@ -172,7 +180,7 @@ impl Engine {
         let speed = travelled / (SPEED_WINDOW_MS as f32 / 1000.0);
 
         let typing = now - self.last_any_key_at < QUIET_AFTER_TYPING_MS || self.any_key_held();
-        let may_trigger = self.can_be_curious() && !typing;
+        let may_trigger = self.can_be_curious(now) && !typing;
         if may_trigger && self.pointer_samples.len() >= MIN_SAMPLES && speed > CURIOUS_SPEED {
             self.curious_until = self.curious_until.max(now + CURIOUS_HOLD_MS);
         }
@@ -181,7 +189,7 @@ impl Engine {
             self.curious_until = self.curious_until.min(now);
         }
 
-        let curious_now = self.can_be_curious() && now < self.curious_until;
+        let curious_now = self.can_be_curious(now) && now < self.curious_until;
         let target = if curious_now { 1.0 } else { 0.0 };
         let next = step_spring(
             self.curious_amount,

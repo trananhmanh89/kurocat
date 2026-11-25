@@ -63,7 +63,8 @@ Notes:
   - `custom_skin.rs`: pattern-based cats.
   - `desk.rs`: keyboard, mouse, bubbles, badges.
   - `dafeiyu.rs`: the sprite-based whale girl, using PNGs from `assets/dafeiyu`.
-  - `sleep.rs`: falls asleep after 5 s without input: closed eyes, slower breathing, a slow side-to-side sway, Z bubbles, the tail wrapped around the front paws (`draw_tail_front` draws the part in front of them), and the head sinks and startles every 1 to 2 minutes. Every input handler calls `mark_activity`.
+  - `sleep.rs`: falls asleep after 10 s without input: closed eyes, slower breathing, a slow side-to-side sway, Z bubbles, the tail wrapped around the front paws (`draw_tail_front` draws the part in front of them), and the head sinks and startles every 1 to 2 minutes. Every input handler calls `mark_activity`.
+  - `anger.rs`: woken up after at least a minute of sleep, the cat is cross for 3.2 s (slanted eyelids, slit pupils, airplane ears, anger vein, huffy side glance, tail thumping the desk; petting ends it). Typing and clicking fast (about 7 key presses plus clicks per second) for 2 s gives only the grumpy eyes, which fade as soon as typing slows down.
   - `curious.rs`: when the cursor darts fast (over 0.92 screen widths per second for 220 ms) and no key was pressed for 0.9 s or is held, the cat stares for 2.2 s: wider eyes, dilated pupils with catchlights (also on the black cat), a head cock, a tail flick and no blinking. Eased by a spring.
   - The keyboard at rest is cached in a layer. Only moving keys are drawn on top of it each frame.
 - **`render/`**: `Canvas` imitates the HTML Canvas 2D API (save/restore, transforms, paths, gradients, clip, global alpha, shadows, text), so the engine reads like the original.

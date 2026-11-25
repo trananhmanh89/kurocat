@@ -216,6 +216,26 @@ impl Engine {
             end_x: start_x + 70.0 + gentle_drift * 0.35,
             end_y: start_y - 35.0 + gentle_drift + curious_twitch,
         };
+        // While cross, the tail lifts slowly and slams down on the desk.
+        let thump = self.cross_amount;
+        let seated = if thump > 0.01 {
+            let lift = self.thump_lift;
+            let lash = self.thump_lash;
+            let max_x = self.logical_w - 18.0;
+            let thumping = TailCurve {
+                start_x,
+                start_y,
+                cp1_x: (start_x + 36.0).min(max_x),
+                cp1_y: start_y + 14.0 - lift * 16.0,
+                cp2_x: (start_x + 64.0 - lift * 10.0).min(max_x),
+                cp2_y: start_y + 24.0 - lift * 52.0,
+                end_x: (start_x + 78.0 - lift * 16.0 + lash * 6.0).min(max_x),
+                end_y: start_y + 30.0 - lift * 76.0,
+            };
+            seated.blend_towards(&thumping, thump)
+        } else {
+            seated
+        };
         if wrap <= 0.0 {
             return seated;
         }
@@ -657,8 +677,10 @@ impl Engine {
     /// @param is_ragdoll True to draw the ragdoll's coloured ear.
     fn draw_one_ear(&self, ctx: &mut Canvas, side_sign: f32, twitch: f32, is_ragdoll: bool) {
         ctx.save();
-        ctx.translate(side_sign * 33.0 + self.face_turn_x * 0.18, -28.0);
-        ctx.rotate(side_sign * (0.08 + twitch));
+        // Cross ears turn back and sink outwards ("airplane ears").
+        let flatten = self.ear_flatten();
+        ctx.translate(side_sign * (33.0 + flatten * 10.0) + self.face_turn_x * 0.18, -28.0 + flatten * 6.0);
+        ctx.rotate(side_sign * (0.08 + flatten + twitch));
 
         if is_ragdoll {
             // Dark espresso rims fading to a latte base.
@@ -726,6 +748,7 @@ impl Engine {
 
         let eye_xs = [cx - 23.0, cx + 23.0];
         let curious = self.curious_level();
+        let grumpy = self.grumpy_eye_amount();
         let radius_x = (14.8 + self.typing_hunch * 1.0) * (1.0 + curious * 0.06);
         let radius_y = (13.4 - self.typing_hunch * 0.5) * (1.0 + curious * 0.09);
 
@@ -779,6 +802,7 @@ impl Engine {
             let open_radius_y = (radius_y * (1.0 - closedness)).max(1.2);
             let curious_tilt = (if index == 0 { -0.1 } else { 0.1 }) * (0.25 + self.typing_hunch * 0.75);
             ctx.rotate(curious_tilt * (1.0 - sleep_line));
+            let lid = super::anger::begin_grumpy_lid(ctx, index, radius_x, open_radius_y, grumpy);
 
             if is_ragdoll {
                 let mut iris_gradient = Gradient::linear(0.0, -open_radius_y, 0.0, open_radius_y);
@@ -810,6 +834,7 @@ impl Engine {
                     curious,
                     pupil_color,
                     is_ragdoll,
+                    grumpy,
                 );
             }
 
@@ -823,6 +848,8 @@ impl Engine {
                 ctx.ellipse(0.0, 0.0, radius_x, open_radius_y, 0.0, 0.0, PI * 2.0, false);
                 ctx.stroke();
             }
+            let lid_color = if is_ragdoll { Some("rgba(34, 39, 54, 0.88)") } else { None };
+            super::anger::end_grumpy_lid(ctx, &lid, radius_x, open_radius_y, lid_color);
 
             if sleep_line > 0.0 {
                 super::sleep::draw_sleeping_eye_line(ctx, sleep_line_color, sleep_line);

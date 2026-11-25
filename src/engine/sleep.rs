@@ -6,7 +6,7 @@ use crate::render::{Canvas, FontSpec, Gradient, LineCap, TextAlign, TextBaseline
 use std::f32::consts::PI;
 
 /// How long without keyboard or mouse input before the pet falls asleep (ms).
-pub(crate) const SLEEP_AFTER_MS: f64 = 5000.0;
+pub(crate) const SLEEP_AFTER_MS: f64 = 10000.0;
 /// How long falling asleep takes (seconds).
 const FALL_ASLEEP_SECONDS: f32 = 2.4;
 /// How long waking up takes (seconds).
@@ -120,6 +120,7 @@ impl Engine {
     ///
     /// @param now Current time in milliseconds.
     pub(crate) fn mark_activity(&mut self, now: f64) {
+        self.check_grumpy_wake_up(now);
         self.last_activity_at = now;
     }
 
@@ -350,7 +351,7 @@ mod tests {
     fn stays_awake_before_the_timeout() {
         let mut engine = Engine::new();
         let start = engine.last_activity_at;
-        run_frames(&mut engine, start, 4.5);
+        run_frames(&mut engine, start, SLEEP_AFTER_MS / 1000.0 - 0.5);
         assert_eq!(engine.sleep_amount(), 0.0);
         assert!(engine.sleep_zs.is_empty());
     }
@@ -359,7 +360,7 @@ mod tests {
     fn falls_asleep_and_shows_z_bubbles() {
         let mut engine = Engine::new();
         let start = engine.last_activity_at;
-        run_frames(&mut engine, start, 9.0);
+        run_frames(&mut engine, start, SLEEP_AFTER_MS / 1000.0 + 4.0);
         assert!(engine.sleep_amount() > 0.99);
         assert!(!engine.sleep_zs.is_empty());
         assert!(!engine.is_sleep_changing());
@@ -389,7 +390,7 @@ mod tests {
     fn input_wakes_it_up() {
         let mut engine = Engine::new();
         let start = engine.last_activity_at;
-        let now = run_frames(&mut engine, start, 9.0);
+        let now = run_frames(&mut engine, start, SLEEP_AFTER_MS / 1000.0 + 4.0);
         engine.mark_activity(now);
         run_frames(&mut engine, now, 0.5);
         assert_eq!(engine.sleep_amount(), 0.0);

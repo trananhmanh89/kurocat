@@ -515,8 +515,10 @@ impl Engine {
     /// @param twitch Extra rotation from an ear twitch, in radians.
     fn draw_custom_ear(&self, ctx: &mut Canvas, s: &ResolvedSkin, side_sign: f32, twitch: f32) {
         ctx.save();
-        ctx.translate(side_sign * 33.0 + self.face_turn_x * 0.18, -28.0);
-        ctx.rotate(side_sign * (0.08 + twitch));
+        // Cross ears turn back and sink outwards ("airplane ears").
+        let flatten = self.ear_flatten();
+        ctx.translate(side_sign * (33.0 + flatten * 10.0) + self.face_turn_x * 0.18, -28.0 + flatten * 6.0);
+        ctx.rotate(side_sign * (0.08 + flatten + twitch));
 
         let base_ear_color = if s.pattern == CatPattern::Calico && side_sign < 0.0 {
             s.mask_color.clone().unwrap_or_else(|| s.ear_outer_color.clone())
@@ -585,6 +587,7 @@ impl Engine {
         let sleep_line = self.sleep_eye_line_amount();
         let eye_xs = [cx - 23.0, cx + 23.0];
         let curious = self.curious_level();
+        let grumpy = self.grumpy_eye_amount();
         let radius_x = (14.8 + self.typing_hunch * 1.0) * (1.0 + curious * 0.06);
         let radius_y = (13.4 - self.typing_hunch * 0.5) * (1.0 + curious * 0.09);
 
@@ -629,6 +632,7 @@ impl Engine {
             let tilt_direction = if index == 0 { -0.1 } else { 0.1 };
             let curious_tilt = tilt_direction * (0.25 + self.typing_hunch * 0.75);
             ctx.rotate(curious_tilt * (1.0 - sleep_line));
+            let lid = super::anger::begin_grumpy_lid(ctx, index, radius_x, open_radius_y, grumpy);
 
             let mut iris_gradient = Gradient::linear(0.0, -open_radius_y, 0.0, open_radius_y);
             iris_gradient.add_color_stop(0.0, &s.eye_color_top);
@@ -650,6 +654,7 @@ impl Engine {
                     curious,
                     &s.pupil_color,
                     s.eye_catchlight,
+                    grumpy,
                 );
             }
             ctx.restore();
@@ -663,6 +668,7 @@ impl Engine {
                     ctx.stroke();
                 }
             }
+            super::anger::end_grumpy_lid(ctx, &lid, radius_x, open_radius_y, s.eye_rim_color.as_deref());
 
             if sleep_line > 0.0 {
                 super::sleep::draw_sleeping_eye_line(ctx, &s.squint_color, sleep_line);

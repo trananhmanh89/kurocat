@@ -190,6 +190,17 @@ impl Engine {
             curious_until: -10000.0,
             curious_amount: 0.0,
             curious_velocity: 0.0,
+            cross_until: -10000.0,
+            cross_amount: 0.0,
+            cross_velocity: 0.0,
+            cross_huff_dir: 1.0,
+            thump_phase: 0.0,
+            thump_lift: 0.0,
+            thump_lash: 0.0,
+            last_slam_at: -10000.0,
+            fast_typing_since: None,
+            typing_glare: 0.0,
+            recent_click_times: Vec::new(),
             left_paw: new_paw(PawSide::Left, cat_center_x, cat_base_y),
             right_paw: new_paw(PawSide::Right, cat_center_x, cat_base_y),
             last_space_paw: PawSide::Left,
@@ -677,6 +688,7 @@ impl Engine {
     pub fn on_mouse_down(&mut self, button: &str) {
         let now = now_ms();
         self.mark_activity(now);
+        self.recent_click_times.push(now);
         match button {
             "left" => {
                 self.mouse_left_down = true;
@@ -901,7 +913,7 @@ impl Engine {
     /// @param now Current time in milliseconds.
     /// @return True when idle.
     pub fn is_idle(&self, now: f64) -> bool {
-        if self.is_sleep_changing() || self.is_curious_active(now) {
+        if self.is_sleep_changing() || self.is_curious_active(now) || self.is_anger_active(now) {
             return false;
         }
         let quiet_for = 5000.0;
@@ -970,6 +982,8 @@ impl Engine {
                 break;
             }
         }
+        self.update_anger(dt, now);
+        let cross = self.cross_amount;
         let target_typing_energy = (self.recent_key_times.len() as f32 / 7.0).min(1.0);
         self.typing_energy = approach(self.typing_energy, target_typing_energy, 9.0, dt);
 
@@ -1070,11 +1084,16 @@ impl Engine {
         let curious_reach = 1.0 + curious * 0.5;
         let target_eye_x = dx * 7.0 * curious_reach * (1.0 - pure_typing_glance * 0.45)
             + pure_typing_glance * (self.typing_sway * 3.8 + self.last_key_bias * 2.2);
+        // A cross cat glances away to one side.
+        let huff_eye_x = self.cross_huff_dir * 0.72 * 7.0 * cross;
+        let target_eye_x = target_eye_x * (1.0 - cross * 0.62) + huff_eye_x * 0.62;
         let target_eye_y = dy * 5.2 * (1.0 - pure_typing_glance * 0.45) + pure_typing_glance * 5.8;
         self.eye_look_x = approach(self.eye_look_x, target_eye_x, 20.0, dt);
         self.eye_look_y = approach(self.eye_look_y, target_eye_y, 20.0, dt);
 
-        let target_face_turn = dx * 4.0 + self.spine_lean * 8.0 + self.typing_sway * 8.5 + pure_typing_glance * 1.5;
+        let target_face_turn = dx * 4.0 * (1.0 - cross * 0.75)
+            + cross * self.cross_huff_dir * 7.5
+            + self.spine_lean * 8.0 + self.typing_sway * 8.5 + pure_typing_glance * 1.5;
         self.face_turn_x = approach(self.face_turn_x, target_face_turn * (1.0 - sleep), 11.0, dt);
 
         for anim in self.key_anims.values_mut() {
@@ -1245,6 +1264,7 @@ impl Engine {
         self.draw_paw(ctx, &self.left_paw, breath);
         self.draw_paw(ctx, &self.right_paw, breath);
         self.draw_tail_front(ctx);
+        self.draw_anger_vein(ctx, breath);
         self.draw_sleep_zs(ctx);
         if self.show_key_bubbles && !self.privacy_mode {
             self.draw_key_bubbles(ctx);

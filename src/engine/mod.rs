@@ -13,6 +13,7 @@
 //! `f64` milliseconds from [`now_ms`]. `elapsed` is `f64` seconds.
 
 mod body;
+mod anger;
 mod animation;
 mod curious;
 mod custom_skin;
@@ -324,6 +325,30 @@ pub struct Engine {
     pub(crate) curious_amount: f32,
     /// Velocity of the spring that eases `curious_amount`.
     pub(crate) curious_velocity: f32,
+
+    // Anger (see `anger.rs`).
+    /// A grumpy wake-up lasts until this time (ms).
+    pub(crate) cross_until: f64,
+    /// How cross the cat looks: 0 = calm, 1 = fully cross.
+    pub(crate) cross_amount: f32,
+    /// Velocity of the spring that eases `cross_amount`.
+    pub(crate) cross_velocity: f32,
+    /// Which way the cross cat looks away: -1 = left, 1 = right.
+    pub(crate) cross_huff_dir: f32,
+    /// Beat counter of the tail thumps.
+    pub(crate) thump_phase: f32,
+    /// How high the tail is lifted for the next thump, 0..1.
+    pub(crate) thump_lift: f32,
+    /// Sideways lash of the thumping tail, -1..1.
+    pub(crate) thump_lash: f32,
+    /// When the tail last slammed the desk (ms).
+    pub(crate) last_slam_at: f64,
+    /// When the current run of fast typing started (ms), if typing is fast right now.
+    pub(crate) fast_typing_since: Option<f64>,
+    /// How strongly the eyes glare from fast typing, 0..1.
+    pub(crate) typing_glare: f32,
+    /// Recent mouse button presses (ms), counted with key presses for the typing glare.
+    pub(crate) recent_click_times: Vec<f64>,
 
     // Paws.
     pub(crate) left_paw: PawState,
