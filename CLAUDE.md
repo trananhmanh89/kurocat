@@ -19,13 +19,16 @@ pwsh scripts/set-exe-icon.ps1       # ALWAYS run after every build: writes asset
 cargo run --release                 # build and run the pet
 cargo run --release -- --demo       # scripted fake input (test rendering without real input)
 cargo run --release -- --mcp        # stdio MCP server only, no window
-cargo test                          # unit tests
+cargo build --release --features layout-108 --target-dir target/108   # 108-key variant, as CI builds it
+pwsh scripts/set-exe-icon.ps1 -ExePath target/108/release/KuroCat.exe  # icon for that variant
+cargo test                          # unit tests (inline `#[cfg(test)] mod tests` in each module; CI runs `cargo test --release`)
 cargo test <test_name>              # a single test
-makensis /DVERSION=x.y.z installer\kurocat.nsi   # installer (NSIS 3, after a release build)
+makensis /DVERSION=x.y.z installer\kurocat.nsi   # installer (NSIS 3, after a release build); optional /DEXE_PATH=… /DOUTPUT=…
 ```
 
 Notes:
-- **Debug builds are slow** because rendering is on the CPU. Judge smoothness and CPU use with `--release`.
+- **Debug builds are slow** because rendering is on the CPU (dependencies are built at `opt-level = 3` even in dev, but our own code is not). Judge smoothness and CPU use with `--release`.
+- Release builds use `windows_subsystem = "windows"`, so they have no console; debug builds keep one, which is where `println!`/`eprintln!` output shows up.
 - **Exe icon**: this machine has no `rc.exe` / `windres`, so `build.rs` (which would embed `assets/app.rc` through `embed-resource`) only warns and the exe comes out without an icon. **After every build, run `scripts/set-exe-icon.ps1`.** It writes the icon into the exe with the Windows resource update API, so the icon travels with the exe. Run it before code signing and before `makensis`. DPI awareness is set in code (`SetProcessDpiAwarenessContext`), so the missing manifest does not matter.
 - **Icon artwork**: `scripts/generate-icon.py` draws the red cat head and writes every file in `assets/icons/`.
 - **Cargo feature `layout-108`**: starts with the 108-key keyboard. The updater also uses it to pick the matching release asset.
@@ -48,6 +51,7 @@ Notes:
 - **`app.rs`**: `AppState` (settings plus atomic flags: menu open, dragging, MCP enabled, update banner, paused), settings changes (`update_settings`, `change_settings`, `apply_*_and_save`), `reload_and_emit_all`, window size per layout and scale.
 - **`hit_test.rs`**: a 25 ms loop that toggles `WS_EX_TRANSPARENT` (click-through) depending on whether the cursor is over the cat or desk. Alt, open menus, dragging and the update banner override it. It also holds the z-order "topmost guard" for full-screen games.
 - **`window.rs`**: also handles the cursor (petting hand), manual drag (`SetCapture`), Ctrl+wheel scaling (committed 400 ms after the last wheel event), `WM_DPICHANGED` and the clipboard.
+- **`audio.rs`**: the purr synth on its own `cpal` thread; the engine drives it through `set_purr_intensity` / `set_sound_enabled`.
 - **`menus.rs`**: right-click context menu. **`tray.rs`**: tray icon and menu. **`banner.rs`**: update and toast banner drawn on the canvas, with clickable buttons.
 - **`input_hook.rs`**: low-level keyboard and mouse hooks. Emits `Input` events with Windows VK codes.
 - **`privacy.rs`**: detects password fields (UI Automation `IsPassword`, `ES_PASSWORD`). While one is focused, the hooks send `PrivacyTyping` instead of the real keys.
@@ -82,4 +86,4 @@ Notes:
 
 ## Releases
 
-The version lives in `Cargo.toml`, and is passed to NSIS as `/DVERSION`. Pushing a `v*` tag runs `.github/workflows/release.yml`, which builds the 65% and 108-key exes, writes the icon, runs the tests and an MCP smoke test, builds both installers, and attaches `KuroCat-<ver>[-108key]-x64-setup.exe` and `KuroCat-<ver>[-108key]-windows-x64.exe` to a draft release. The updater relies on these names. The README also has versioned download links. `website/` is the separate project site (Chinese), maintained by hand.
+The version lives in `Cargo.toml`; CI fails if the pushed `v*` tag does not match it. It is passed to NSIS as `/DVERSION`. Pushing a `v*` tag runs `.github/workflows/release.yml`, which builds the 65% and 108-key exes, writes the icon, runs the tests and an MCP smoke test, builds both installers, and attaches `KuroCat-<ver>[-108key]-x64-setup.exe` and `KuroCat-<ver>[-108key]-windows-x64.exe` to a draft release. The updater relies on these names. The README also has versioned download links. `website/` is the separate project site (Chinese), maintained by hand.
