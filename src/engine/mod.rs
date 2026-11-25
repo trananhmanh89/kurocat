@@ -14,6 +14,7 @@
 
 mod body;
 mod animation;
+mod curious;
 mod custom_skin;
 mod dafeiyu;
 mod desk;
@@ -309,6 +310,20 @@ pub struct Engine {
     pub(crate) sleep_sway_phase: f32,
     /// Current sway while asleep: -1 = leaning left, 1 = leaning right.
     pub(crate) sleep_sway: f32,
+
+    // Curious mode (see `curious.rs`).
+    /// Recent cursor steps, for the speed measurement.
+    pub(crate) pointer_samples: Vec<curious::PointerSample>,
+    /// Last cursor position seen (0..1 across the virtual screen).
+    pub(crate) last_pointer_sample: Option<(f32, f32)>,
+    /// When the last cursor position was seen (ms).
+    pub(crate) last_pointer_sample_at: f64,
+    /// The cat stays curious until this time (ms).
+    pub(crate) curious_until: f64,
+    /// How curious the cat looks: 0 = not at all, 1 = fully (may overshoot a little).
+    pub(crate) curious_amount: f32,
+    /// Velocity of the spring that eases `curious_amount`.
+    pub(crate) curious_velocity: f32,
 
     // Paws.
     pub(crate) left_paw: PawState,

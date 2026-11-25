@@ -184,6 +184,12 @@ impl Engine {
             nod_amount: 0.0,
             sleep_sway_phase: 0.0,
             sleep_sway: 0.0,
+            pointer_samples: Vec::new(),
+            last_pointer_sample: None,
+            last_pointer_sample_at: -10000.0,
+            curious_until: -10000.0,
+            curious_amount: 0.0,
+            curious_velocity: 0.0,
             left_paw: new_paw(PawSide::Left, cat_center_x, cat_base_y),
             right_paw: new_paw(PawSide::Right, cat_center_x, cat_base_y),
             last_space_paw: PawSide::Left,
@@ -591,6 +597,7 @@ impl Engine {
         self.mark_activity(now);
         let is_big_fish = self.cat_breed == CatBreed::DaFeiYu;
         self.last_mouse_nx = nx;
+        self.record_pointer_speed(nx, ny, now);
         self.mouse_target_offset_x = (nx - 0.5) * if is_big_fish { 14.0 } else { 28.0 };
         self.mouse_target_offset_y = (ny - 0.5) * if is_big_fish { 11.0 } else { 20.0 };
         self.last_mouse_move_at = now;
@@ -894,7 +901,7 @@ impl Engine {
     /// @param now Current time in milliseconds.
     /// @return True when idle.
     pub fn is_idle(&self, now: f64) -> bool {
-        if self.is_sleep_changing() {
+        if self.is_sleep_changing() || self.is_curious_active(now) {
             return false;
         }
         let quiet_for = 5000.0;
@@ -937,7 +944,9 @@ impl Engine {
     pub fn update(&mut self, dt: f32, now: f64) {
         self.elapsed += dt as f64;
         self.update_sleep(dt, now);
+        self.update_curious(dt, now);
         let sleep = self.sleep_amount();
+        let curious = self.curious_level();
 
         let mouse_lerp = 1.0 - (-28.0 * dt).exp();
         self.mouse_offset_x += (self.mouse_target_offset_x - self.mouse_offset_x) * mouse_lerp;
@@ -1009,7 +1018,9 @@ impl Engine {
             + self.spine_lean * 0.085
             + sleep * (0.075 + self.breath_phase.sin() * 0.035)
             + self.sleep_sway * 0.05
-            + self.nod_amount * 0.08;
+            + self.nod_amount * 0.08
+            // Curious head cock towards where the eyes look.
+            + curious * 0.16 * (self.eye_look_x / 7.0).clamp(-1.0, 1.0);
         self.head_tilt = approach(self.head_tilt, desired_head_tilt, 12.0, dt);
 
         let pet_decay = if self.cursor_over_cat { 0.22 } else { 0.65 };
@@ -1056,7 +1067,8 @@ impl Engine {
         }
         let mouse_recently_moved = now - self.last_mouse_move_at < 2400.0;
         let pure_typing_glance = if mouse_recently_moved { 0.0 } else { self.typing_hunch };
-        let target_eye_x = dx * 7.0 * (1.0 - pure_typing_glance * 0.45)
+        let curious_reach = 1.0 + curious * 0.5;
+        let target_eye_x = dx * 7.0 * curious_reach * (1.0 - pure_typing_glance * 0.45)
             + pure_typing_glance * (self.typing_sway * 3.8 + self.last_key_bias * 2.2);
         let target_eye_y = dy * 5.2 * (1.0 - pure_typing_glance * 0.45) + pure_typing_glance * 5.8;
         self.eye_look_x = approach(self.eye_look_x, target_eye_x, 20.0, dt);

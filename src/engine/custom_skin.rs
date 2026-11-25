@@ -584,8 +584,9 @@ impl Engine {
         let closedness = blink_value.max(self.squint_amount * 0.85).max(self.privacy_close).max(self.sleep_amount());
         let sleep_line = self.sleep_eye_line_amount();
         let eye_xs = [cx - 23.0, cx + 23.0];
-        let radius_x = 14.8 + self.typing_hunch * 1.0;
-        let radius_y = 13.4 - self.typing_hunch * 0.5;
+        let curious = self.curious_level();
+        let radius_x = (14.8 + self.typing_hunch * 1.0) * (1.0 + curious * 0.06);
+        let radius_y = (13.4 - self.typing_hunch * 0.5) * (1.0 + curious * 0.09);
 
         for (index, eye_x) in eye_xs.iter().enumerate() {
             ctx.save();
@@ -640,23 +641,16 @@ impl Engine {
             ctx.save();
             ctx.clip();
             if open_radius_y > 3.2 {
-                let pupil_x = self.eye_look_x;
-                let pupil_y = self.eye_look_y;
-                ctx.set_fill_color(&s.pupil_color);
-                ctx.begin_path();
-                ctx.ellipse(pupil_x, pupil_y, 6.2, 8.8, 0.0, 0.0, PI * 2.0, false);
-                ctx.fill();
-
-                if s.eye_catchlight {
-                    ctx.set_fill_color("rgba(255, 255, 255, 0.94)");
-                    ctx.begin_path();
-                    ctx.arc(pupil_x - 3.6, pupil_y - 4.0, 2.5, 0.0, PI * 2.0, false);
-                    ctx.fill();
-                    ctx.set_fill_color("rgba(255, 255, 255, 0.72)");
-                    ctx.begin_path();
-                    ctx.arc(pupil_x + 3.2, pupil_y + 3.2, 1.2, 0.0, PI * 2.0, false);
-                    ctx.fill();
-                }
+                super::curious::draw_pupil(
+                    ctx,
+                    self.eye_look_x,
+                    self.eye_look_y,
+                    radius_x,
+                    open_radius_y,
+                    curious,
+                    &s.pupil_color,
+                    s.eye_catchlight,
+                );
             }
             ctx.restore();
 

@@ -197,6 +197,8 @@ impl Engine {
     /// @return The curve in logical pixels.
     fn tail_curve(&self) -> TailCurve {
         let gentle_drift = (self.elapsed as f32 * 0.9).sin() * 1.4;
+        // The tail tip flicks quickly while the cat is curious.
+        let curious_twitch = (self.elapsed as f32 * 14.5).sin() * 4.2 * self.curious_level();
         let hip_right = self.spine_point(0.84, 0.0);
         let base = self.spine_point(1.0, 0.0);
         let wrap = self.tail_wrap_amount();
@@ -212,7 +214,7 @@ impl Engine {
             cp2_x: start_x + 38.0,
             cp2_y: start_y - 34.0 + gentle_drift * 0.45,
             end_x: start_x + 70.0 + gentle_drift * 0.35,
-            end_y: start_y - 35.0 + gentle_drift,
+            end_y: start_y - 35.0 + gentle_drift + curious_twitch,
         };
         if wrap <= 0.0 {
             return seated;
@@ -723,8 +725,9 @@ impl Engine {
         let sleep_line_color = if is_ragdoll { "#212533" } else { "#d4f044" };
 
         let eye_xs = [cx - 23.0, cx + 23.0];
-        let radius_x = 14.8 + self.typing_hunch * 1.0;
-        let radius_y = 13.4 - self.typing_hunch * 0.5;
+        let curious = self.curious_level();
+        let radius_x = (14.8 + self.typing_hunch * 1.0) * (1.0 + curious * 0.06);
+        let radius_y = (13.4 - self.typing_hunch * 0.5) * (1.0 + curious * 0.09);
 
         for (index, eye_x) in eye_xs.into_iter().enumerate() {
             ctx.save();
@@ -796,25 +799,18 @@ impl Engine {
 
             if open_radius_y > 3.2 {
                 // Pupil follows the cursor and rests low when looking at the keyboard.
-                let pupil_x = self.eye_look_x;
-                let pupil_y = self.eye_look_y;
-                ctx.set_fill_color(if is_ragdoll { "#101624" } else { "#0e0e10" });
-                ctx.begin_path();
-                ctx.ellipse(pupil_x, pupil_y, 6.2, 8.8, 0.0, 0.0, PI * 2.0, false);
-                ctx.fill();
-
-                if is_ragdoll {
-                    // Two glossy catchlights.
-                    ctx.set_fill_color("rgba(255, 255, 255, 0.94)");
-                    ctx.begin_path();
-                    ctx.arc(pupil_x - 3.6, pupil_y - 4.0, 2.5, 0.0, PI * 2.0, false);
-                    ctx.fill();
-
-                    ctx.set_fill_color("rgba(255, 255, 255, 0.72)");
-                    ctx.begin_path();
-                    ctx.arc(pupil_x + 3.2, pupil_y + 3.2, 1.2, 0.0, PI * 2.0, false);
-                    ctx.fill();
-                }
+                // The ragdoll always has catchlights; the black cat gets them when curious.
+                let pupil_color = if is_ragdoll { "#101624" } else { "#0e0e10" };
+                super::curious::draw_pupil(
+                    ctx,
+                    self.eye_look_x,
+                    self.eye_look_y,
+                    radius_x,
+                    open_radius_y,
+                    curious,
+                    pupil_color,
+                    is_ragdoll,
+                );
             }
 
             ctx.restore();
