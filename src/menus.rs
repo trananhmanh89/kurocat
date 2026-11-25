@@ -19,8 +19,6 @@ pub enum MenuOutcome {
     Done,
     /// Copy the MCP configuration to the clipboard.
     CopyMcpConfig,
-    /// Run an update check (or install a known update).
-    CheckForUpdate,
 }
 
 /// Adds a check item to a menu.
@@ -117,7 +115,6 @@ pub fn build_context_menu(settings: &AppSettings, cats: &[CatSkinConfig]) -> Men
 
     append_item(&menu, "ctx:shortcut", "Create desktop shortcut");
     append_item(&menu, "ctx:reset-pos", "Move to bottom-right corner");
-    append_item(&menu, "ctx:check-update", &format!("Check for updates (v{})", crate::updater::CURRENT_VERSION));
     append_separator(&menu);
     append_item(&menu, "ctx:quit", "Quit");
     menu
@@ -193,7 +190,6 @@ pub fn handle_context_menu_id(id: &str) -> Option<MenuOutcome> {
             events::send(AppEvent::Toast(message));
         }
         "reset-pos" => events::send(AppEvent::Window(WindowCommand::ResetPosition)),
-        "check-update" => return Some(MenuOutcome::CheckForUpdate),
         "quit" => events::send(AppEvent::Quit),
         _ => {}
     }

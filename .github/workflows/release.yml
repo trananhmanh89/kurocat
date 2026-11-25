@@ -3,7 +3,7 @@ name: Build Windows Release
 # Builds the native Windows app (65% and 108-key keyboard variants), packs the installers and
 # attaches everything to a draft GitHub Release when a v* tag is pushed.
 #
-# Asset names matter: the in-app updater picks `*-x64-setup.exe` for installed copies and
+# Asset names matter: the in-app updater of older releases picks `*-x64-setup.exe` for installed copies and
 # `*-windows-x64.exe` for portable copies, and `108key` in the name for the 108-key build.
 
 on:

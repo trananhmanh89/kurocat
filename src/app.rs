@@ -38,8 +38,8 @@ pub struct AppState {
     pub dragging: AtomicBool,
     /// True while the MCP HTTP server should answer requests.
     pub mcp_enabled: AtomicBool,
-    /// True while the update toast is shown (its area stays clickable).
-    pub update_banner_open: AtomicBool,
+    /// True while the toast banner is shown (its close cross stays clickable).
+    pub banner_open: AtomicBool,
     /// True while input listening is paused and the pet is hidden (anti-cheat mode).
     pub paused_guard: AtomicBool,
 }
@@ -272,7 +272,7 @@ fn start_storage_watcher() {
     });
 }
 
-/// When started with `--wait-pid <pid>` (after "restart as administrator" or an update), waits
+/// When started with `--wait-pid <pid>` (after "restart as administrator"), waits
 /// for the previous process to exit so two pets never run at once.
 fn wait_for_previous_process_if_requested() {
     use windows_sys::Win32::Foundation::CloseHandle;
@@ -333,7 +333,7 @@ pub fn run() {
         menu_open: AtomicBool::new(false),
         dragging: AtomicBool::new(false),
         mcp_enabled: AtomicBool::new(initial_settings.mcp_enabled),
-        update_banner_open: AtomicBool::new(false),
+        banner_open: AtomicBool::new(false),
         paused_guard: AtomicBool::new(false),
     });
 
@@ -351,7 +351,6 @@ pub fn run() {
     crate::privacy::start_password_privacy_watcher();
     crate::hit_test::start_hit_test_loop();
     start_storage_watcher();
-    crate::updater::start_background_update_checker();
 
     let mcp_port = if initial_settings.mcp_port == 0 { 27420 } else { initial_settings.mcp_port };
     crate::mcp::start_http_mcp_server(mcp_port, reload_and_emit_all);

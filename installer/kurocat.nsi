@@ -10,7 +10,7 @@
 ; folder and uninstall registry key as the old Tauri installer, so it upgrades v4.x in place.
 ;
 ; Command-line flags:
-;   /S        silent install (used by the in-app updater of v5 and later)
+;   /S        silent install (used by the in-app updater of older v5 releases)
 ;   /P        passive install: no questions, progress only (used by the v4.x updater)
 ;   /R        start KuroCat after installing (used by the v4.x updater)
 ;   /UPDATE   accepted for v4.x compatibility; no effect

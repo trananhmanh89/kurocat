@@ -6,7 +6,6 @@
 use crate::cats::CatSkinConfig;
 use crate::config::AppSettings;
 use crate::input_hook::InputEvent;
-use crate::updater::UpdateProgressEvent;
 use std::sync::atomic::{AtomicIsize, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Mutex, OnceLock};
@@ -44,8 +43,6 @@ pub enum WindowCommand {
     Resize { layout: String, scale: f64 },
     /// Move the window back to the default bottom-right corner of the screen.
     ResetPosition,
-    /// Show the pet and check for updates, reporting in the update banner.
-    CheckForUpdate,
 }
 
 /// Everything the UI thread can be told about.
@@ -63,8 +60,6 @@ pub enum AppEvent {
     Cats(Vec<CatSkinConfig>),
     /// The tray icon was clicked or hovered.
     TrayIcon(tray_icon::TrayIconEvent),
-    /// Progress of an update check or install.
-    UpdateStatus(UpdateProgressEvent),
     /// A short message to show in the toast at the top of the pet.
     Toast(String),
     /// A window operation to run on the UI thread.

@@ -22,7 +22,6 @@ mod privacy;
 mod render;
 mod skins;
 mod tray;
-mod updater;
 mod window;
 
 /// Program entry point.

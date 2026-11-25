@@ -49,7 +49,6 @@ Your settings and cats are kept in `%APPDATA%\kuro-cat-pet` and survive upgrades
 - **Key bubbles**: little 3D key caps pop up above the keyboard as you type. They can be hidden.
 - **Smart click-through**: clicks pass through the transparent areas, so the pet never blocks your work or your game.
 - **Size from 20% to 150%**: pick a preset from the right-click menu, or hold `Ctrl` and scroll over the cat.
-- **Automatic updates**: KuroCat checks GitHub Releases in the background and shows a small banner above the cat when a new version is out. "Check for updates" downloads it, verifies its SHA-256 and installs it silently. This works for both the installed and the portable version.
 - **Smooth and light**: up to 60 fps while you type, and 30 fps when idle.
 
 ## 🤖 MCP setup (change or add cats with AI)

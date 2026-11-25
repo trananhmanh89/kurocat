@@ -723,7 +723,6 @@ impl WindowState {
                 }
                 self.apply_appearance();
             }
-            AppEvent::UpdateStatus(progress) => self.banner.handle_update_progress(&progress),
             AppEvent::Toast(text) => self.banner.show_message(&text),
             AppEvent::TrayIcon(icon_event) => {
                 if let Some(tray) = self.tray.as_ref() {
@@ -784,7 +783,6 @@ impl WindowState {
                 };
                 self.banner.show_message(message);
             }
-            MenuOutcome::CheckForUpdate => self.banner.start_manual_check(),
         }
     }
 
@@ -836,10 +834,6 @@ impl WindowState {
     fn handle_window_command(&mut self, command: WindowCommand) {
         match command {
             WindowCommand::Show => self.show(),
-            WindowCommand::CheckForUpdate => {
-                self.show();
-                self.banner.start_manual_check();
-            }
             WindowCommand::Hide => unsafe {
                 ShowWindow(self.hwnd, SW_HIDE);
             },

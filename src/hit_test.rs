@@ -299,7 +299,7 @@ pub fn start_hit_test_loop() {
 
             let menu_open = state.menu_open.load(Ordering::Relaxed);
             let dragging = state.dragging.load(Ordering::Relaxed);
-            let banner_open = state.update_banner_open.load(Ordering::Relaxed);
+            let banner_open = state.banner_open.load(Ordering::Relaxed);
 
             if settings.always_on_top && !menu_open && !dragging {
                 guard.tick(hwnd);

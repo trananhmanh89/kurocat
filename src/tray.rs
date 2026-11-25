@@ -31,7 +31,6 @@ const ID_DESKTOP_SHORTCUT: &str = "tray:desktop_shortcut";
 const ID_RESET_POS: &str = "tray:reset_pos";
 const ID_AUTOSTART: &str = "tray:autostart";
 const ID_MCP: &str = "tray:mcp_toggle";
-const ID_CHECK_UPDATE: &str = "tray:check_update";
 const ID_QUIT: &str = "tray:quit";
 const BREED_ID_PREFIX: &str = "tray:breed:";
 const SCALE_ID_PREFIX: &str = "tray:scale:";
@@ -205,8 +204,6 @@ impl Tray {
         let reset_pos = plain_item(ID_RESET_POS, "Move back to the bottom-right corner", true);
         let autostart = check_item(ID_AUTOSTART, "Start with Windows", initial.autostart);
         let mcp = check_item(ID_MCP, "Enable MCP extension server", initial.mcp_enabled);
-        let update_label = format!("Check for updates (v{})", crate::updater::CURRENT_VERSION);
-        let check_update = plain_item(ID_CHECK_UPDATE, &update_label, true);
         let quit = plain_item(ID_QUIT, "Quit KuroCat", true);
         let separator_top = PredefinedMenuItem::separator();
         let separator_bottom = PredefinedMenuItem::separator();
@@ -228,7 +225,6 @@ impl Tray {
             &reset_pos,
             &autostart,
             &mcp,
-            &check_update,
             &separator_bottom,
             &quit,
         ])
@@ -375,13 +371,6 @@ impl Tray {
                 events::send(AppEvent::Toast(message));
             }
             ID_RESET_POS => events::send(AppEvent::Window(WindowCommand::ResetPosition)),
-            ID_CHECK_UPDATE => {
-                // The pet must be listening again to show the result.
-                if app::state().paused_guard.load(Ordering::SeqCst) {
-                    self.set_paused(false);
-                }
-                events::send(AppEvent::Window(WindowCommand::CheckForUpdate));
-            }
             ID_QUIT => events::send(AppEvent::Quit),
             _ => {}
         }
